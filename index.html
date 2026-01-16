@@ -191,3 +191,856 @@
       line-height: 1.4;
       max-width: 360px;
     }
+
+    .hud strong { color: rgba(255,255,255,0.95); }
+
+    .tiny {
+      font-size: 11px;
+      color: rgba(255,255,255,0.70);
+      margin-top: 6px;
+    }
+
+    .kbd {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 7px;
+      border: 1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.07);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      margin: 0 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel">
+      <h1>Projectile Motion Simulator</h1>
+      <p class="sub">
+        Side-view 2D ballistic model (no drag). Goal is a top-opening “bucket” at a given distance.
+        Set a firing rate to visualize multiple balls in flight along the same path.
+      </p>
+
+      <div class="grid">
+        <div class="row">
+          <label>Start height y₀ (m) <span class="value" id="v_y0"></span></label>
+          <input id="y0" type="range" min="0" max="5" step="0.01" />
+        </div>
+        <div class="row">
+          <label>Angle θ (deg) <span class="value" id="v_ang"></span></label>
+          <input id="ang" type="range" min="0" max="85" step="0.1" />
+        </div>
+
+        <div class="row">
+          <label>Speed v₀ (m/s) <span class="value" id="v_v0"></span></label>
+          <input id="v0" type="range" min="0" max="30" step="0.01" />
+        </div>
+        <div class="row">
+          <label>Gravity g (m/s²) <span class="value" id="v_g"></span></label>
+          <input id="g" type="range" min="0" max="20" step="0.01" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="row">
+          <label>Goal distance xg (m) <span class="value" id="v_xg"></span></label>
+          <input id="xg" type="range" min="1" max="30" step="0.01" />
+        </div>
+        <div class="row">
+          <label>Goal rim height yg (m) <span class="value" id="v_yg"></span></label>
+          <input id="yg" type="range" min="0" max="8" step="0.01" />
+        </div>
+        <div class="row">
+          <label>Goal opening width wg (m) <span class="value" id="v_wg"></span></label>
+          <input id="wg" type="range" min="0.05" max="4" step="0.01" />
+        </div>
+        <div class="row">
+          <label>Goal depth (visual) (m) <span class="value" id="v_depth"></span></label>
+          <input id="depth" type="range" min="0.1" max="4" step="0.01" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="row">
+          <label>Fire rate (balls/sec) <span class="value" id="v_rate"></span></label>
+          <input id="rate" type="range" min="0" max="10" step="0.01" />
+        </div>
+        <div class="row">
+          <label>Ball radius (m) <span class="value" id="v_r"></span></label>
+          <input id="r" type="range" min="0.01" max="0.5" step="0.01" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="row">
+          <label>Playback speed <span class="value" id="v_speed"></span></label>
+          <input id="speed" type="range" min="0.1" max="4" step="0.01" />
+        </div>
+        <div class="row">
+          <label>Max balls on screen <span class="value" id="v_maxBalls"></span></label>
+          <input id="maxBalls" type="range" min="1" max="250" step="1" />
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="row">
+          <label>
+            Show trajectory curve
+            <span class="value"><input id="showCurve" type="checkbox" /></span>
+          </label>
+          <label>
+            Show time ticks
+            <span class="value"><input id="showTicks" type="checkbox" /></span>
+          </label>
+        </div>
+        <div class="row">
+          <label>
+            Follow camera (auto-zoom)
+            <span class="value"><input id="autoZoom" type="checkbox" /></span>
+          </label>
+          <label>
+            Pause
+            <span class="value"><input id="paused" type="checkbox" /></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button id="reset">Reset time</button>
+        <button class="secondary" id="save">Save settings</button>
+      </div>
+
+      <div class="stats" id="stats"></div>
+    </div>
+
+    <div class="canvasWrap panel">
+      <canvas id="c"></canvas>
+      <div class="hud" id="hud">
+        <div><strong>Controls:</strong> <span class="kbd">Space</span> pause/resume • <span class="kbd">R</span> reset time</div>
+        <div class="tiny">
+          “Score” = ball crosses down through the rim line within the opening width. No rim collision modeling (yet).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ----------------------------
+    // Utilities
+    // ----------------------------
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const deg2rad = (d) => d * Math.PI / 180;
+
+    function fmt(x, digits=2) {
+      if (!isFinite(x)) return "—";
+      return x.toFixed(digits);
+    }
+
+    // ----------------------------
+    // DOM wiring
+    // ----------------------------
+    const el = (id) => document.getElementById(id);
+
+    const controls = {
+      y0: el("y0"),
+      ang: el("ang"),
+      v0: el("v0"),
+      g: el("g"),
+      xg: el("xg"),
+      yg: el("yg"),
+      wg: el("wg"),
+      depth: el("depth"),
+      rate: el("rate"),
+      r: el("r"),
+      speed: el("speed"),
+      maxBalls: el("maxBalls"),
+      showCurve: el("showCurve"),
+      showTicks: el("showTicks"),
+      autoZoom: el("autoZoom"),
+      paused: el("paused"),
+      reset: el("reset"),
+      save: el("save"),
+      stats: el("stats"),
+    };
+
+    const valueSpans = {
+      y0: el("v_y0"),
+      ang: el("v_ang"),
+      v0: el("v_v0"),
+      g: el("v_g"),
+      xg: el("v_xg"),
+      yg: el("v_yg"),
+      wg: el("v_wg"),
+      depth: el("v_depth"),
+      rate: el("v_rate"),
+      r: el("v_r"),
+      speed: el("v_speed"),
+      maxBalls: el("v_maxBalls"),
+    };
+
+    const DEFAULTS = {
+      y0: 1.0,
+      ang: 45.0,
+      v0: 12.0,
+      g: 9.81,
+      xg: 10.0,
+      yg: 2.5,
+      wg: 1.0,
+      depth: 1.0,
+      rate: 2.0,
+      r: 0.12,
+      speed: 1.0,
+      maxBalls: 80,
+      showCurve: true,
+      showTicks: true,
+      autoZoom: true,
+      paused: false
+    };
+
+    function readUI() {
+      return {
+        y0: parseFloat(controls.y0.value),
+        ang: parseFloat(controls.ang.value),
+        v0: parseFloat(controls.v0.value),
+        g: parseFloat(controls.g.value),
+        xg: parseFloat(controls.xg.value),
+        yg: parseFloat(controls.yg.value),
+        wg: parseFloat(controls.wg.value),
+        depth: parseFloat(controls.depth.value),
+        rate: parseFloat(controls.rate.value),
+        r: parseFloat(controls.r.value),
+        speed: parseFloat(controls.speed.value),
+        maxBalls: parseInt(controls.maxBalls.value, 10),
+        showCurve: controls.showCurve.checked,
+        showTicks: controls.showTicks.checked,
+        autoZoom: controls.autoZoom.checked,
+        paused: controls.paused.checked
+      };
+    }
+
+    function writeUI(p) {
+      controls.y0.value = p.y0;
+      controls.ang.value = p.ang;
+      controls.v0.value = p.v0;
+      controls.g.value = p.g;
+      controls.xg.value = p.xg;
+      controls.yg.value = p.yg;
+      controls.wg.value = p.wg;
+      controls.depth.value = p.depth;
+      controls.rate.value = p.rate;
+      controls.r.value = p.r;
+      controls.speed.value = p.speed;
+      controls.maxBalls.value = p.maxBalls;
+      controls.showCurve.checked = !!p.showCurve;
+      controls.showTicks.checked = !!p.showTicks;
+      controls.autoZoom.checked = !!p.autoZoom;
+      controls.paused.checked = !!p.paused;
+      refreshValueLabels();
+    }
+
+    function refreshValueLabels() {
+      const p = readUI();
+      valueSpans.y0.textContent = fmt(p.y0, 2);
+      valueSpans.ang.textContent = fmt(p.ang, 1);
+      valueSpans.v0.textContent = fmt(p.v0, 2);
+      valueSpans.g.textContent = fmt(p.g, 2);
+      valueSpans.xg.textContent = fmt(p.xg, 2);
+      valueSpans.yg.textContent = fmt(p.yg, 2);
+      valueSpans.wg.textContent = fmt(p.wg, 2);
+      valueSpans.depth.textContent = fmt(p.depth, 2);
+      valueSpans.rate.textContent = fmt(p.rate, 2);
+      valueSpans.r.textContent = fmt(p.r, 2);
+      valueSpans.speed.textContent = fmt(p.speed, 2) + "×";
+      valueSpans.maxBalls.textContent = String(p.maxBalls);
+    }
+
+    // Load from localStorage if available
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem("projSimSettingsV1");
+        if (!raw) return { ...DEFAULTS };
+        const parsed = JSON.parse(raw);
+        return { ...DEFAULTS, ...parsed };
+      } catch {
+        return { ...DEFAULTS };
+      }
+    }
+
+    function saveSettings() {
+      const p = readUI();
+      localStorage.setItem("projSimSettingsV1", JSON.stringify(p));
+    }
+
+    // ----------------------------
+    // Physics model
+    // ----------------------------
+    function stateAtTime(p, t) {
+      // Launch at (0, y0) with v0 at angle ang
+      const th = deg2rad(p.ang);
+      const vx = p.v0 * Math.cos(th);
+      const vy = p.v0 * Math.sin(th);
+
+      const x = vx * t;
+      const y = p.y0 + vy * t - 0.5 * p.g * t * t;
+
+      const vx_t = vx;
+      const vy_t = vy - p.g * t;
+
+      return { x, y, vx: vx_t, vy: vy_t };
+    }
+
+    function timeOfFlightToGround(p) {
+      // Solve y(t)=0 => y0 + vy t - 1/2 g t^2 = 0
+      const th = deg2rad(p.ang);
+      const vy = p.v0 * Math.sin(th);
+      const a = -0.5 * p.g;
+      const b = vy;
+      const c = p.y0;
+
+      // If g = 0, linear motion:
+      if (Math.abs(p.g) < 1e-9) {
+        if (Math.abs(b) < 1e-9) return Infinity;
+        const t = -c / b;
+        return t > 0 ? t : Infinity;
+      }
+
+      // Quadratic roots:
+      const disc = b*b - 4*a*c;
+      if (disc < 0) return Infinity;
+      const s = Math.sqrt(disc);
+      const t1 = (-b + s) / (2*a);
+      const t2 = (-b - s) / (2*a);
+      const tPos = [t1, t2].filter(t => t > 1e-9).sort((m,n)=>m-n);
+      return tPos.length ? tPos[0] : Infinity;
+    }
+
+    function timeToReachX(p, x) {
+      const th = deg2rad(p.ang);
+      const vx = p.v0 * Math.cos(th);
+      if (Math.abs(vx) < 1e-9) return Infinity;
+      const t = x / vx;
+      return t >= 0 ? t : Infinity;
+    }
+
+    // Score test: does the ball cross DOWN through the rim line (y=yg) while x is within the opening?
+    // This approximates a top-opening goal. (No rim collision / side collision)
+    function scores(p) {
+      const tAtGoal = timeToReachX(p, p.xg);
+      if (!isFinite(tAtGoal)) return { score: false, reason: "No forward x velocity" };
+
+      const th = deg2rad(p.ang);
+      const vx = p.v0 * Math.cos(th);
+      const vy0 = p.v0 * Math.sin(th);
+
+      const yAtGoal = p.y0 + vy0 * tAtGoal - 0.5 * p.g * tAtGoal * tAtGoal;
+      const vyAtGoal = vy0 - p.g * tAtGoal;
+
+      // Ball center must cross from above the rim to below the rim while descending.
+      // We check: at goal x, is it at/below rim and descending, and did it come from above slightly earlier?
+      // Use a small dt to test crossing.
+      const dt = 0.01;
+      const yPrev = p.y0 + vy0 * Math.max(0, tAtGoal - dt) - 0.5 * p.g * Math.max(0, tAtGoal - dt) * Math.max(0, tAtGoal - dt);
+
+      const withinOpening = true; // because x is exactly xg in this check; opening width is in x.
+      // But opening width is horizontal along x, so the bucket spans [xg-wg/2, xg+wg/2].
+      // Since we evaluate at xg (center), it’s implicitly within. We'll do a better segment test below.
+
+      // Better: find the time interval where x is within the opening width.
+      const xLeft = p.xg - p.wg/2;
+      const xRight = p.xg + p.wg/2;
+      const tL = timeToReachX(p, xLeft);
+      const tR = timeToReachX(p, xRight);
+      const tIn0 = Math.min(tL, tR);
+      const tIn1 = Math.max(tL, tR);
+
+      if (!isFinite(tIn0) || !isFinite(tIn1)) return { score: false, reason: "No opening interval" };
+
+      // We want to know if y crosses y=yg downward for some t in [tIn0, tIn1].
+      // Solve y(t)=yg, then check if any root is within the interval and is descending at that time.
+      // y(t) = y0 + vy0 t - 0.5 g t^2
+      // => -0.5 g t^2 + vy0 t + (y0 - yg) = 0
+      const a = -0.5 * p.g;
+      const b = vy0;
+      const c = p.y0 - p.yg;
+
+      if (Math.abs(p.g) < 1e-9) {
+        // Linear y(t) = y0 + vy0 t. Crossing exists if vy0 != 0.
+        if (Math.abs(vy0) < 1e-9) return { score: false, reason: "No vertical motion" };
+        const tCross = (p.yg - p.y0) / vy0;
+        if (tCross >= tIn0 && tCross <= tIn1 && vy0 < 0) {
+          return { score: true, t: tCross, yAtGoal: yAtGoal, vyAtGoal: vyAtGoal };
+        }
+        return { score: false, reason: "No downward rim crossing in opening" };
+      }
+
+      const disc = b*b - 4*a*c;
+      if (disc < 0) return { score: false, reason: "Never reaches rim height" };
+      const s = Math.sqrt(disc);
+      const tA = (-b + s) / (2*a);
+      const tB = (-b - s) / (2*a);
+
+      const candidates = [tA, tB].filter(t => isFinite(t) && t >= 0);
+      // descending condition: vy(t) = vy0 - g t < 0
+      const valid = candidates.filter(t => (t >= tIn0 && t <= tIn1) && (vy0 - p.g * t < 0));
+
+      if (!valid.length) return { score: false, reason: "No downward rim crossing in opening" };
+
+      // Choose earliest valid crossing
+      const tCross = valid.sort((m,n)=>m-n)[0];
+      return { score: true, t: tCross, yAtGoal: yAtGoal, vyAtGoal: vyAtGoal };
+    }
+
+    // ----------------------------
+    // Rendering
+    // ----------------------------
+    const canvas = el("c");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    window.addEventListener("resize", resizeCanvas);
+
+    // World-to-screen transform computed each frame
+    function makeView(p, tNow) {
+      // Decide bounds based on path + goal. If autoZoom, include most relevant region.
+      const th = deg2rad(p.ang);
+      const vx = p.v0 * Math.cos(th);
+      const vy = p.v0 * Math.sin(th);
+
+      const tGround = timeOfFlightToGround(p);
+      const tMax = isFinite(tGround) ? tGround : 5;
+
+      // Sample trajectory to find max height and range
+      let xMax = 0, yMax = p.y0;
+      const samples = 200;
+      for (let i = 0; i <= samples; i++) {
+        const tt = (tMax * i) / samples;
+        const s = stateAtTime(p, tt);
+        if (s.x > xMax) xMax = s.x;
+        if (s.y > yMax) yMax = s.y;
+      }
+
+      // Ensure goal is visible
+      xMax = Math.max(xMax, p.xg + p.wg/2 + 1);
+      yMax = Math.max(yMax, p.yg + 1);
+
+      const xMin = -1;
+      const yMin = -0.5;
+
+      // Add margin
+      const padX = 1.0;
+      const padY = 1.0;
+
+      const wx0 = xMin - padX;
+      const wx1 = xMax + padX;
+      const wy0 = yMin - padY;
+      const wy1 = yMax + padY;
+
+      // Map to canvas with y up
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+
+      const sx = w / (wx1 - wx0);
+      const sy = h / (wy1 - wy0);
+      const smin = Math.min(sx, sy);
+
+      // Center vertically/horizontally
+      const worldW = (wx1 - wx0);
+      const worldH = (wy1 - wy0);
+
+      const viewW = w / smin;
+      const viewH = h / smin;
+
+      const cx = (wx0 + wx1) / 2;
+      const cy = (wy0 + wy1) / 2;
+
+      const vx0 = cx - viewW/2;
+      const vy0 = cy - viewH/2;
+
+      return {
+        scale: smin,
+        worldX0: vx0,
+        worldY0: vy0,
+        viewW,
+        viewH,
+        toScreen(x, y) {
+          const px = (x - vx0) * smin;
+          const py = h - (y - vy0) * smin;
+          return { px, py };
+        },
+        metersToPixels(m) { return m * smin; }
+      };
+    }
+
+    function clear() {
+      ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    }
+
+    function drawGrid(view) {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+
+      // minor grid in world coordinates, choose step based on zoom
+      const step = chooseNiceStep(1 / view.scale * 90); // rough target pixel spacing
+      const minor = step / 5;
+
+      drawGridLines(view, minor, 0.08);
+      drawGridLines(view, step, 0.14);
+
+      ctx.restore();
+
+      // ground line
+      ctx.save();
+      ctx.globalAlpha = 0.7;
+      ctx.lineWidth = 2;
+      const a = view.toScreen(view.worldX0, 0);
+      const b = view.toScreen(view.worldX0 + view.viewW, 0);
+      ctx.beginPath();
+      ctx.moveTo(a.px, a.py);
+      ctx.lineTo(b.px, b.py);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawGridLines(view, step, alpha) {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 1;
+
+      const x0 = Math.floor(view.worldX0 / step) * step;
+      const x1 = view.worldX0 + view.viewW;
+      for (let x = x0; x <= x1; x += step) {
+        const p0 = view.toScreen(x, view.worldY0);
+        const p1 = view.toScreen(x, view.worldY0 + view.viewH);
+        ctx.beginPath();
+        ctx.moveTo(p0.px, p0.py);
+        ctx.lineTo(p1.px, p1.py);
+        ctx.stroke();
+      }
+
+      const y0 = Math.floor(view.worldY0 / step) * step;
+      const y1 = view.worldY0 + view.viewH;
+      for (let y = y0; y <= y1; y += step) {
+        const p0 = view.toScreen(view.worldX0, y);
+        const p1 = view.toScreen(view.worldX0 + view.viewW, y);
+        ctx.beginPath();
+        ctx.moveTo(p0.px, p0.py);
+        ctx.lineTo(p1.px, p1.py);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function chooseNiceStep(targetWorldStep) {
+      // choose 1,2,5 * 10^n near targetWorldStep
+      const pow = Math.pow(10, Math.floor(Math.log10(targetWorldStep)));
+      const candidates = [1, 2, 5, 10].map(k => k * pow);
+      let best = candidates[0];
+      let bestErr = Math.abs(best - targetWorldStep);
+      for (const c of candidates) {
+        const err = Math.abs(c - targetWorldStep);
+        if (err < bestErr) { best = c; bestErr = err; }
+      }
+      return best;
+    }
+
+    function drawGoal(view, p) {
+      // Goal is a top-opening bucket centered at xg with width wg and rim height yg.
+      // Visually draw a U-shape: left wall, right wall, and bottom at yg - depth.
+      const xL = p.xg - p.wg/2;
+      const xR = p.xg + p.wg/2;
+      const yRim = p.yg;
+      const yBot = p.yg - p.depth;
+
+      const pTL = view.toScreen(xL, yRim);
+      const pTR = view.toScreen(xR, yRim);
+      const pBL = view.toScreen(xL, yBot);
+      const pBR = view.toScreen(xR, yBot);
+
+      ctx.save();
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = 0.9;
+
+      // Bucket outline
+      ctx.beginPath();
+      ctx.moveTo(pTL.px, pTL.py);
+      ctx.lineTo(pBL.px, pBL.py);
+      ctx.lineTo(pBR.px, pBR.py);
+      ctx.lineTo(pTR.px, pTR.py);
+      ctx.stroke();
+
+      // Rim highlight (opening line)
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pTL.px, pTL.py);
+      ctx.lineTo(pTR.px, pTR.py);
+      ctx.stroke();
+
+      // Label
+      ctx.globalAlpha = 0.9;
+      ctx.font = "12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText("Goal (top opening)", pTR.px + 8, pTR.py + 4);
+
+      ctx.restore();
+    }
+
+    function drawTrajectory(view, p) {
+      const tGround = timeOfFlightToGround(p);
+      const tMax = isFinite(tGround) ? tGround : 6;
+
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 2;
+
+      const N = 240;
+      ctx.beginPath();
+      for (let i = 0; i <= N; i++) {
+        const t = (tMax * i) / N;
+        const s = stateAtTime(p, t);
+        if (s.y < -2) break;
+        const q = view.toScreen(s.x, s.y);
+        if (i === 0) ctx.moveTo(q.px, q.py);
+        else ctx.lineTo(q.px, q.py);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawTimeTicks(view, p) {
+      const tGround = timeOfFlightToGround(p);
+      const tMax = isFinite(tGround) ? Math.min(tGround, 10) : 10;
+
+      const tickEvery = chooseNiceStep(tMax / 8);
+      ctx.save();
+      ctx.globalAlpha = 0.6;
+      ctx.lineWidth = 1.5;
+      ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+
+      for (let t = 0; t <= tMax + 1e-6; t += tickEvery) {
+        const s = stateAtTime(p, t);
+        if (s.y < 0) continue;
+        const q = view.toScreen(s.x, s.y);
+        ctx.beginPath();
+        ctx.arc(q.px, q.py, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillText(t.toFixed(2) + "s", q.px + 6, q.py - 6);
+      }
+
+      ctx.restore();
+    }
+
+    function drawBalls(view, p, balls, tNow) {
+      // Draw older balls fainter
+      const radiusPx = view.metersToPixels(p.r);
+
+      ctx.save();
+      for (const b of balls) {
+        const age = tNow - b.birth;
+        if (age < 0) continue;
+        const s = stateAtTime(p, age);
+        if (s.y < -2) continue;
+
+        const q = view.toScreen(s.x, s.y);
+
+        // Fade by age a bit
+        const alpha = clamp(1.0 - (age / 6.0) * 0.45, 0.15, 1.0);
+        ctx.globalAlpha = alpha;
+
+        ctx.beginPath();
+        ctx.arc(q.px, q.py, radiusPx, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    // ----------------------------
+    // Simulation loop
+    // ----------------------------
+    let tNow = 0;           // simulation time (seconds)
+    let lastReal = 0;       // real timestamp for delta
+    let nextSpawn = 0;      // next spawn time (simulation clock)
+    let balls = [];         // {birth: number}
+    let cachedScore = null; // computed on parameter change
+
+    function recomputeDerived() {
+      const p = readUI();
+      cachedScore = scores(p);
+    }
+
+    function resetTime() {
+      tNow = 0;
+      lastReal = performance.now();
+      nextSpawn = 0;
+      balls = [];
+      // spawn a ball immediately so you always see one
+      balls.push({ birth: 0 });
+      nextSpawn = (readUI().rate > 0) ? (1 / readUI().rate) : Infinity;
+    }
+
+    function updateStats() {
+      const p = readUI();
+
+      const th = deg2rad(p.ang);
+      const vx = p.v0 * Math.cos(th);
+      const vy0 = p.v0 * Math.sin(th);
+
+      const tGround = timeOfFlightToGround(p);
+      const range = isFinite(tGround) ? vx * tGround : Infinity;
+      const tAtGoal = timeToReachX(p, p.xg);
+      const yAtGoal = isFinite(tAtGoal) ? (p.y0 + vy0 * tAtGoal - 0.5 * p.g * tAtGoal * tAtGoal) : NaN;
+
+      let maxH = p.y0;
+      if (Math.abs(p.g) > 1e-9) {
+        // time to apex: vy0 - g t = 0
+        const tApex = vy0 / p.g;
+        if (tApex > 0) {
+          const sA = stateAtTime(p, tApex);
+          maxH = Math.max(maxH, sA.y);
+        }
+      }
+
+      const score = cachedScore && cachedScore.score;
+
+      const scorePill = score
+        ? `<span class="pill ok">SCORES</span>`
+        : `<span class="pill bad">NO SCORE</span>`;
+
+      const reason = (!score && cachedScore && cachedScore.reason) ? ` <span class="pill warn">${cachedScore.reason}</span>` : "";
+
+      controls.stats.innerHTML = `
+        <div>vx = <span class="pill">${fmt(vx,2)} m/s</span> • vy₀ = <span class="pill">${fmt(vy0,2)} m/s</span></div>
+        <div>Max height ≈ <span class="pill">${fmt(maxH,2)} m</span> • Time of flight ≈ <span class="pill">${isFinite(tGround) ? fmt(tGround,2) + " s" : "—"}</span></div>
+        <div>Range to ground ≈ <span class="pill">${isFinite(range) ? fmt(range,2) + " m" : "—"}</span></div>
+        <div>At goal center x=${fmt(p.xg,2)}m: y ≈ <span class="pill">${isFinite(yAtGoal) ? fmt(yAtGoal,2) + " m" : "—"}</span> • t ≈ <span class="pill">${isFinite(tAtGoal) ? fmt(tAtGoal,2) + " s" : "—"}</span></div>
+        <div>${scorePill}${reason}</div>
+      `;
+    }
+
+    function step(realNow) {
+      const p = readUI();
+      const paused = p.paused;
+
+      if (!lastReal) lastReal = realNow;
+      const dtReal = (realNow - lastReal) / 1000;
+      lastReal = realNow;
+
+      if (!paused) {
+        const dtSim = dtReal * p.speed;
+        tNow += dtSim;
+
+        // spawn balls by fire rate
+        if (p.rate > 0) {
+          const period = 1 / p.rate;
+          while (tNow >= nextSpawn) {
+            balls.push({ birth: nextSpawn });
+            nextSpawn += period;
+
+            if (balls.length > p.maxBalls) {
+              balls.splice(0, balls.length - p.maxBalls);
+            }
+          }
+        }
+      }
+
+      // Cull balls that are well beyond useful range
+      const tGround = timeOfFlightToGround(p);
+      const tCull = (isFinite(tGround) ? tGround : 8) + 2;
+      balls = balls.filter(b => (tNow - b.birth) <= tCull);
+
+      render();
+      requestAnimationFrame(step);
+    }
+
+    function render() {
+      const p = readUI();
+      const view = makeView(p, tNow);
+
+      clear();
+      drawGrid(view);
+      drawGoal(view, p);
+
+      if (p.showCurve) drawTrajectory(view, p);
+      if (p.showTicks) drawTimeTicks(view, p);
+
+      drawBalls(view, p, balls, tNow);
+
+      // Draw launch point indicator
+      const launch = view.toScreen(0, p.y0);
+      ctx.save();
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(launch.px, launch.py, 5, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.font = "12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial";
+      ctx.fillText("Launch", launch.px + 10, launch.py + 4);
+      ctx.restore();
+    }
+
+    // ----------------------------
+    // Event handlers
+    // ----------------------------
+    function onAnyChange() {
+      refreshValueLabels();
+      recomputeDerived();
+      updateStats();
+      // Keep spawn schedule consistent with rate changes
+      const p = readUI();
+      if (p.rate <= 0) {
+        nextSpawn = Infinity;
+      } else {
+        // nextSpawn should be the next multiple of period after current tNow
+        const period = 1 / p.rate;
+        nextSpawn = Math.ceil(tNow / period) * period;
+      }
+    }
+
+    for (const k of Object.keys(controls)) {
+      const node = controls[k];
+      if (!node) continue;
+      if (node.tagName === "INPUT") {
+        node.addEventListener("input", onAnyChange);
+        node.addEventListener("change", onAnyChange);
+      }
+    }
+
+    controls.reset.addEventListener("click", () => resetTime());
+    controls.save.addEventListener("click", () => saveSettings());
+
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        controls.paused.checked = !controls.paused.checked;
+        onAnyChange();
+      }
+      if (e.key === "r" || e.key === "R") {
+        resetTime();
+      }
+    });
+
+    // ----------------------------
+    // Init
+    // ----------------------------
+    resizeCanvas();
+    writeUI(loadSettings());
+    recomputeDerived();
+    updateStats();
+    resetTime();
+    requestAnimationFrame(step);
+  </script>
+</body>
+</html>
