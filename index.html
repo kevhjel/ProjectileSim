@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Projectile Motion + Goal + Multi-ball Interference (Inches)</title>
+  <title>Projectile Motion + Goal + Multi-ball Interference (Inches + Noise)</title>
   <style>
     :root {
       --bg: #0b1020;
@@ -31,7 +31,7 @@
 
     .app {
       display: grid;
-      grid-template-columns: 380px 1fr;
+      grid-template-columns: 400px 1fr;
       gap: 16px;
       padding: 16px;
       box-sizing: border-box;
@@ -210,7 +210,7 @@
       font-size: 12px;
       color: rgba(255,255,255,0.85);
       line-height: 1.4;
-      max-width: 380px;
+      max-width: 420px;
     }
 
     .hud strong { color: rgba(255,255,255,0.95); }
@@ -270,10 +270,10 @@
 <body>
   <div class="app">
     <div class="panel">
-      <h1>Projectile Motion Simulator <span class="pill">Units: inches</span></h1>
+      <h1>Projectile Motion Simulator <span class="pill">Units: inches</span> <span class="pill">Noise + σ band</span></h1>
       <p class="sub">
-        Side-view 2D ballistic model (no drag). Goal is a top-opening “bucket” at a given distance.
-        Set a firing rate to visualize multiple balls in flight along the same path.
+        Side-view 2D ballistic model (no drag). Goal is a top-opening “bucket”.
+        Std dev controls add shot-to-shot noise; the shaded band shows an estimated ~1σ envelope.
       </p>
 
       <!-- Launch -->
@@ -281,9 +281,7 @@
         <div class="row">
           <div class="labelRow">
             <label>Start height y₀ <span class="units">(in)</span></label>
-            <div class="valueWrap">
-              <input id="y0_num" type="number" step="0.1" />
-            </div>
+            <div class="valueWrap"><input id="y0_num" type="number" step="0.1" /></div>
           </div>
           <input id="y0" type="range" min="0" max="240" step="0.1" />
         </div>
@@ -291,9 +289,7 @@
         <div class="row">
           <div class="labelRow">
             <label>Angle θ <span class="units">(deg)</span></label>
-            <div class="valueWrap">
-              <input id="ang_num" type="number" step="0.1" />
-            </div>
+            <div class="valueWrap"><input id="ang_num" type="number" step="0.1" /></div>
           </div>
           <input id="ang" type="range" min="0" max="85" step="0.1" />
         </div>
@@ -301,9 +297,7 @@
         <div class="row">
           <div class="labelRow">
             <label>Speed v₀ <span class="units">(in/s)</span></label>
-            <div class="valueWrap">
-              <input id="v0_num" type="number" step="1" />
-            </div>
+            <div class="valueWrap"><input id="v0_num" type="number" step="1" /></div>
           </div>
           <input id="v0" type="range" min="0" max="1200" step="1" />
         </div>
@@ -311,11 +305,28 @@
         <div class="row">
           <div class="labelRow">
             <label>Gravity g <span class="units">(in/s²)</span></label>
-            <div class="valueWrap">
-              <input id="g_num" type="number" step="0.1" />
-            </div>
+            <div class="valueWrap"><input id="g_num" type="number" step="0.1" /></div>
           </div>
           <input id="g" type="range" min="0" max="800" step="0.1" />
+        </div>
+      </div>
+
+      <!-- Noise -->
+      <div class="grid">
+        <div class="row">
+          <div class="labelRow">
+            <label>σ exit velocity <span class="units">(in/s)</span></label>
+            <div class="valueWrap"><input id="v0sd_num" type="number" step="0.1" /></div>
+          </div>
+          <input id="v0sd" type="range" min="0" max="300" step="0.1" />
+        </div>
+
+        <div class="row">
+          <div class="labelRow">
+            <label>σ shot angle <span class="units">(deg)</span></label>
+            <div class="valueWrap"><input id="angsd_num" type="number" step="0.1" /></div>
+          </div>
+          <input id="angsd" type="range" min="0" max="20" step="0.1" />
         </div>
       </div>
 
@@ -324,9 +335,7 @@
         <div class="row">
           <div class="labelRow">
             <label>Goal distance xg <span class="units">(in)</span></label>
-            <div class="valueWrap">
-              <input id="xg_num" type="number" step="0.1" />
-            </div>
+            <div class="valueWrap"><input id="xg_num" type="number" step="0.1" /></div>
           </div>
           <input id="xg" type="range" min="1" max="1200" step="0.1" />
         </div>
@@ -334,9 +343,7 @@
         <div class="row">
           <div class="labelRow">
             <label>Goal rim height yg <span class="units">(in)</span></label>
-            <div class="valueWrap">
-              <input id="yg_num" type="number" step="0.1" />
-            </div>
+            <div class="valueWrap"><input id="yg_num" type="number" step="0.1" /></div>
           </div>
           <input id="yg" type="range" min="0" max="600" step="0.1" />
         </div>
@@ -344,9 +351,7 @@
         <div class="row">
           <div class="labelRow">
             <label>Goal opening width wg <span class="units">(in)</span></label>
-            <div class="valueWrap">
-              <input id="wg_num" type="number" step="0.1" />
-            </div>
+            <div class="valueWrap"><input id="wg_num" type="number" step="0.1" /></div>
           </div>
           <input id="wg" type="range" min="0.5" max="240" step="0.1" />
         </div>
@@ -354,9 +359,7 @@
         <div class="row">
           <div class="labelRow">
             <label>Goal depth (visual) <span class="units">(in)</span></label>
-            <div class="valueWrap">
-              <input id="depth_num" type="number" step="0.1" />
-            </div>
+            <div class="valueWrap"><input id="depth_num" type="number" step="0.1" /></div>
           </div>
           <input id="depth" type="range" min="0.5" max="240" step="0.1" />
         </div>
@@ -367,9 +370,7 @@
         <div class="row">
           <div class="labelRow">
             <label>Fire rate <span class="units">(balls/sec)</span></label>
-            <div class="valueWrap">
-              <input id="rate_num" type="number" step="0.1" />
-            </div>
+            <div class="valueWrap"><input id="rate_num" type="number" step="0.1" /></div>
           </div>
           <input id="rate" type="range" min="0" max="20" step="0.01" />
         </div>
@@ -377,9 +378,7 @@
         <div class="row">
           <div class="labelRow">
             <label>Ball radius <span class="units">(in)</span></label>
-            <div class="valueWrap">
-              <input id="r_num" type="number" step="0.1" />
-            </div>
+            <div class="valueWrap"><input id="r_num" type="number" step="0.1" /></div>
           </div>
           <input id="r" type="range" min="0.1" max="24" step="0.1" />
         </div>
@@ -389,9 +388,7 @@
         <div class="row">
           <div class="labelRow">
             <label>Playback speed</label>
-            <div class="valueWrap">
-              <input id="speed_num" type="number" step="0.01" />
-            </div>
+            <div class="valueWrap"><input id="speed_num" type="number" step="0.01" /></div>
           </div>
           <input id="speed" type="range" min="0.1" max="4" step="0.01" />
         </div>
@@ -399,9 +396,7 @@
         <div class="row">
           <div class="labelRow">
             <label>Max balls on screen</label>
-            <div class="valueWrap">
-              <input id="maxBalls_num" type="number" step="1" />
-            </div>
+            <div class="valueWrap"><input id="maxBalls_num" type="number" step="1" /></div>
           </div>
           <input id="maxBalls" type="range" min="1" max="250" step="1" />
         </div>
@@ -409,31 +404,22 @@
 
       <div class="grid">
         <div class="row">
-          <label>
-            <span>Show trajectory curve</span>
-            <span class="valueWrap"><input id="showCurve" type="checkbox" /></span>
-          </label>
-          <label>
-            <span>Show time ticks</span>
-            <span class="valueWrap"><input id="showTicks" type="checkbox" /></span>
-          </label>
+          <label><span>Show trajectory curve</span><span class="valueWrap"><input id="showCurve" type="checkbox" /></span></label>
+          <label><span>Show time ticks</span><span class="valueWrap"><input id="showTicks" type="checkbox" /></span></label>
         </div>
         <div class="row">
-          <label>
-            <span>Follow camera (auto-zoom)</span>
-            <span class="valueWrap"><input id="autoZoom" type="checkbox" /></span>
-          </label>
-          <label>
-            <span>Pause</span>
-            <span class="valueWrap"><input id="paused" type="checkbox" /></span>
-          </label>
+          <label><span>Follow camera (auto-zoom)</span><span class="valueWrap"><input id="autoZoom" type="checkbox" /></span></label>
+          <label><span>Pause</span><span class="valueWrap"><input id="paused" type="checkbox" /></span></label>
         </div>
       </div>
+
+      <!-- Reset time / save / defaults -->
       <div class="buttons3">
         <button id="reset">Reset time</button>
         <button class="secondary" id="saveLocal">Save (local)</button>
         <button class="danger" id="resetDefaults">Reset defaults</button>
       </div>
+
       <div class="settingsBox">
         <div class="buttons3">
           <button id="exportBtn">Export .json</button>
@@ -455,7 +441,7 @@
       <div class="hud" id="hud">
         <div><strong>Controls:</strong> <span class="kbd">Space</span> pause/resume • <span class="kbd">R</span> reset time</div>
         <div class="tiny">
-          “Score” = ball center crosses down through the rim line within the opening width. No rim collision modeling yet.
+          Shaded band: Monte Carlo estimate of ~1σ envelope from (v₀, θ) noise. Balls also spawn with those random variations.
         </div>
       </div>
     </div>
@@ -470,11 +456,8 @@
 
     function inToM(xIn) { return xIn * IN_TO_M; }
     function mToIn(xM) { return xM * M_TO_IN; }
-
-    // velocity: in/s -> m/s, acceleration: in/s^2 -> m/s^2 uses same scale
     function inPerSecToMPerSec(vIn) { return vIn * IN_TO_M; }
     function mPerSecToInPerSec(vM) { return vM * M_TO_IN; }
-
     function inPerSec2ToMPerSec2(aIn) { return aIn * IN_TO_M; }
     function mPerSec2ToInPerSec2(aM) { return aM * M_TO_IN; }
 
@@ -489,6 +472,15 @@
       return x.toFixed(digits);
     }
 
+    // Normal(0,1) via Box-Muller
+    function randn() {
+      // avoid 0
+      let u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
     // ============================
     // DOM
     // ============================
@@ -500,6 +492,8 @@
       ang: el("ang"),
       v0: el("v0"),
       g: el("g"),
+      v0sd: el("v0sd"),
+      angsd: el("angsd"),
       xg: el("xg"),
       yg: el("yg"),
       wg: el("wg"),
@@ -514,6 +508,8 @@
       ang_num: el("ang_num"),
       v0_num: el("v0_num"),
       g_num: el("g_num"),
+      v0sd_num: el("v0sd_num"),
+      angsd_num: el("angsd_num"),
       xg_num: el("xg_num"),
       yg_num: el("yg_num"),
       wg_num: el("wg_num"),
@@ -532,6 +528,7 @@
       // actions
       reset: el("reset"),
       saveLocal: el("saveLocal"),
+      resetDefaults: el("resetDefaults"),
 
       exportBtn: el("exportBtn"),
       copyBtn: el("copyBtn"),
@@ -547,17 +544,19 @@
     // Defaults (UI units: inches, in/s, in/s^2)
     // ============================
     const DEFAULTS = {
-      y0: 22.0,          // in
-      ang: 75.0,         // deg
-      v0: 330.0,         // in/s
+      y0: 40.0,          // in
+      ang: 45.0,         // deg
+      v0: 400.0,         // in/s
       g: 386.09,         // in/s^2 (Earth)
+      v0sd: 0.0,         // in/s
+      angsd: 0.0,        // deg
       xg: 120.0,         // in
-      yg: 72.0,         // in
-      wg: 41.73,          // in
-      depth: 72.0,       // in (visual)
+      yg: 100.0,         // in
+      wg: 24.0,          // in
+      depth: 18.0,       // in (visual)
       rate: 5.0,         // balls/s
-      r: 3,            // in
-      speed: .5,        // sim playback multiplier
+      r: 3.5,            // in
+      speed: 1.0,        // sim playback multiplier
       maxBalls: 120,
       showCurve: true,
       showTicks: true,
@@ -565,8 +564,7 @@
       paused: false
     };
 
-    // Schema version so exported files are future-proof-ish
-    const SETTINGS_VERSION = 1;
+    const SETTINGS_VERSION = 2;
 
     // ============================
     // Read/write UI
@@ -577,6 +575,8 @@
         ang: parseFloat(controls.ang.value),
         v0: parseFloat(controls.v0.value),
         g: parseFloat(controls.g.value),
+        v0sd: parseFloat(controls.v0sd.value),
+        angsd: parseFloat(controls.angsd.value),
         xg: parseFloat(controls.xg.value),
         yg: parseFloat(controls.yg.value),
         wg: parseFloat(controls.wg.value),
@@ -593,27 +593,28 @@
     }
 
     function writeUI(p) {
-      // ranges
       controls.y0.value = p.y0;
       controls.ang.value = p.ang;
       controls.v0.value = p.v0;
       controls.g.value = p.g;
+      controls.v0sd.value = p.v0sd;
+      controls.angsd.value = p.angsd;
+
       controls.xg.value = p.xg;
       controls.yg.value = p.yg;
       controls.wg.value = p.wg;
       controls.depth.value = p.depth;
+
       controls.rate.value = p.rate;
       controls.r.value = p.r;
       controls.speed.value = p.speed;
       controls.maxBalls.value = p.maxBalls;
 
-      // checkboxes
       controls.showCurve.checked = !!p.showCurve;
       controls.showTicks.checked = !!p.showTicks;
       controls.autoZoom.checked = !!p.autoZoom;
       controls.paused.checked = !!p.paused;
 
-      // number boxes mirror
       syncNumbersFromRanges();
     }
 
@@ -622,10 +623,15 @@
       controls.ang_num.value = controls.ang.value;
       controls.v0_num.value = controls.v0.value;
       controls.g_num.value  = controls.g.value;
+
+      controls.v0sd_num.value = controls.v0sd.value;
+      controls.angsd_num.value = controls.angsd.value;
+
       controls.xg_num.value = controls.xg.value;
       controls.yg_num.value = controls.yg.value;
       controls.wg_num.value = controls.wg.value;
       controls.depth_num.value = controls.depth.value;
+
       controls.rate_num.value = controls.rate.value;
       controls.r_num.value = controls.r.value;
       controls.speed_num.value = controls.speed.value;
@@ -640,7 +646,6 @@
       const max = parseFloat(rangeEl.max);
       v = clamp(v, min, max);
 
-      // snap to step if step exists
       const step = parseFloat(rangeEl.step);
       if (isFinite(step) && step > 0) {
         v = Math.round(v / step) * step;
@@ -656,7 +661,7 @@
     // ============================
     function loadSettingsLocal() {
       try {
-        const raw = localStorage.getItem("projSimInchSettingsV1");
+        const raw = localStorage.getItem("projSimInchSettingsV2");
         if (!raw) return { ...DEFAULTS };
         const parsed = JSON.parse(raw);
         return sanitizeSettings({ ...DEFAULTS, ...parsed });
@@ -667,7 +672,7 @@
 
     function saveSettingsLocal() {
       const p = readUI();
-      localStorage.setItem("projSimInchSettingsV1", JSON.stringify(p));
+      localStorage.setItem("projSimInchSettingsV2", JSON.stringify(p));
     }
 
     // ============================
@@ -683,9 +688,7 @@
     }
 
     function sanitizeSettings(obj) {
-      // accept either envelope or raw settings
       const s = obj && obj.settings ? obj.settings : obj;
-
       const out = { ...DEFAULTS, ...(s || {}) };
 
       // clamp to UI ranges
@@ -693,10 +696,14 @@
       out.ang = clamp(out.ang, parseFloat(controls.ang.min), parseFloat(controls.ang.max));
       out.v0 = clamp(out.v0, parseFloat(controls.v0.min), parseFloat(controls.v0.max));
       out.g  = clamp(out.g,  parseFloat(controls.g.min),  parseFloat(controls.g.max));
+      out.v0sd = clamp(out.v0sd, parseFloat(controls.v0sd.min), parseFloat(controls.v0sd.max));
+      out.angsd = clamp(out.angsd, parseFloat(controls.angsd.min), parseFloat(controls.angsd.max));
+
       out.xg = clamp(out.xg, parseFloat(controls.xg.min), parseFloat(controls.xg.max));
       out.yg = clamp(out.yg, parseFloat(controls.yg.min), parseFloat(controls.yg.max));
       out.wg = clamp(out.wg, parseFloat(controls.wg.min), parseFloat(controls.wg.max));
       out.depth = clamp(out.depth, parseFloat(controls.depth.min), parseFloat(controls.depth.max));
+
       out.rate = clamp(out.rate, parseFloat(controls.rate.min), parseFloat(controls.rate.max));
       out.r = clamp(out.r, parseFloat(controls.r.min), parseFloat(controls.r.max));
       out.speed = clamp(out.speed, parseFloat(controls.speed.min), parseFloat(controls.speed.max));
@@ -748,6 +755,9 @@
         recomputeDerived();
         updateStats();
         resetTime();
+
+        // keep textarea aligned to current state
+        controls.settingsText.value = JSON.stringify(currentSettingsEnvelope(), null, 2);
       } catch (e) {
         alert("Could not parse settings JSON. Make sure it's valid JSON.");
       }
@@ -757,41 +767,45 @@
       const env = currentSettingsEnvelope();
       const text = JSON.stringify(env, null, 2);
       controls.settingsText.value = text;
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch {
-        // clipboard might fail; at least it's in the textbox
-      }
+      try { await navigator.clipboard.writeText(text); } catch { /* ignore */ }
     }
 
     // ============================
     // Physics (internally in meters)
     // ============================
-    function uiToSim(pUI) {
+    function uiToSim(ui) {
       return {
-        y0_m: inToM(pUI.y0),
-        ang_deg: pUI.ang,
-        v0_mps: inPerSecToMPerSec(pUI.v0),
-        g_mps2: inPerSec2ToMPerSec2(pUI.g),
-        xg_m: inToM(pUI.xg),
-        yg_m: inToM(pUI.yg),
-        wg_m: inToM(pUI.wg),
-        depth_m: inToM(pUI.depth),
-        r_m: inToM(pUI.r),
-        rate: pUI.rate,
-        speed: pUI.speed,
-        maxBalls: pUI.maxBalls,
-        showCurve: pUI.showCurve,
-        showTicks: pUI.showTicks,
-        autoZoom: pUI.autoZoom,
-        paused: pUI.paused
+        y0_m: inToM(ui.y0),
+        ang_deg: ui.ang,
+        v0_mps: inPerSecToMPerSec(ui.v0),
+        g_mps2: inPerSec2ToMPerSec2(ui.g),
+
+        v0sd_mps: inPerSecToMPerSec(ui.v0sd),
+        angsd_deg: ui.angsd,
+
+        xg_m: inToM(ui.xg),
+        yg_m: inToM(ui.yg),
+        wg_m: inToM(ui.wg),
+        depth_m: inToM(ui.depth),
+
+        r_m: inToM(ui.r),
+
+        rate: ui.rate,
+        speed: ui.speed,
+        maxBalls: ui.maxBalls,
+
+        showCurve: ui.showCurve,
+        showTicks: ui.showTicks,
+        autoZoom: ui.autoZoom,
+        paused: ui.paused
       };
     }
 
-    function stateAtTime(sim, t) {
-      const th = deg2rad(sim.ang_deg);
-      const vx = sim.v0_mps * Math.cos(th);
-      const vy = sim.v0_mps * Math.sin(th);
+    // State for a specific trajectory (with its own v0 + ang)
+    function stateAtTime(sim, traj, t) {
+      const th = deg2rad(traj.ang_deg);
+      const vx = traj.v0_mps * Math.cos(th);
+      const vy = traj.v0_mps * Math.sin(th);
 
       const x = vx * t;
       const y = sim.y0_m + vy * t - 0.5 * sim.g_mps2 * t * t;
@@ -799,9 +813,9 @@
       return { x, y, vx, vy: (vy - sim.g_mps2 * t) };
     }
 
-    function timeOfFlightToGround(sim) {
-      const th = deg2rad(sim.ang_deg);
-      const vy0 = sim.v0_mps * Math.sin(th);
+    function timeOfFlightToGround(sim, traj) {
+      const th = deg2rad(traj.ang_deg);
+      const vy0 = traj.v0_mps * Math.sin(th);
       const a = -0.5 * sim.g_mps2;
       const b = vy0;
       const c = sim.y0_m;
@@ -822,26 +836,28 @@
       return tPos.length ? tPos[0] : Infinity;
     }
 
-    function timeToReachX(sim, x) {
-      const th = deg2rad(sim.ang_deg);
-      const vx = sim.v0_mps * Math.cos(th);
+    function timeToReachX(sim, traj, x) {
+      const th = deg2rad(traj.ang_deg);
+      const vx = traj.v0_mps * Math.cos(th);
       if (Math.abs(vx) < 1e-9) return Infinity;
       const t = x / vx;
       return t >= 0 ? t : Infinity;
     }
 
-    function scores(sim) {
-      const th = deg2rad(sim.ang_deg);
-      const vx = sim.v0_mps * Math.cos(th);
-      const vy0 = sim.v0_mps * Math.sin(th);
+    // Score using mean trajectory only (for now)
+    function scoresMean(sim) {
+      const traj = { v0_mps: sim.v0_mps, ang_deg: sim.ang_deg };
+      const th = deg2rad(traj.ang_deg);
+      const vx = traj.v0_mps * Math.cos(th);
+      const vy0 = traj.v0_mps * Math.sin(th);
 
       if (Math.abs(vx) < 1e-9) return { score: false, reason: "No forward x velocity" };
 
       const xLeft = sim.xg_m - sim.wg_m/2;
       const xRight = sim.xg_m + sim.wg_m/2;
 
-      const tL = timeToReachX(sim, xLeft);
-      const tR = timeToReachX(sim, xRight);
+      const tL = timeToReachX(sim, traj, xLeft);
+      const tR = timeToReachX(sim, traj, xRight);
       if (!isFinite(tL) || !isFinite(tR)) return { score: false, reason: "No opening interval" };
 
       const tIn0 = Math.min(tL, tR);
@@ -875,6 +891,79 @@
     }
 
     // ============================
+    // Trajectory band (Monte Carlo ~1σ envelope)
+    // ============================
+    // We estimate min/max y in x-bins from a set of trajectories drawn from N(mean, sd).
+    // This is not a perfect "1σ contour", but visually it behaves like an envelope around typical shots.
+    function buildTrajectoryBand(sim) {
+      const ui = readUI();
+
+      const v0sd = Math.max(0, sim.v0sd_mps);
+      const angsd = Math.max(0, sim.angsd_deg);
+
+      // If no noise, no band
+      if (v0sd < 1e-9 && angsd < 1e-9) return null;
+
+      const samples = 80;          // number of random trajectories
+      const bins = 240;            // x bins
+      const xMax = Math.max(sim.xg_m + sim.wg_m/2 + inToM(48), inToM(ui.xg + 200)); // keep it wide-ish
+      const binW = xMax / bins;
+
+      const minY = new Array(bins).fill(Infinity);
+      const maxY = new Array(bins).fill(-Infinity);
+      const seen = new Array(bins).fill(false);
+
+      // Time stepping resolution
+      const stepsPerTraj = 220;
+
+      for (let s = 0; s < samples; s++) {
+        // draw a random v0, ang
+        let v0 = sim.v0_mps + v0sd * randn();
+        let ang = sim.ang_deg + angsd * randn();
+
+        // clamp to reasonable / UI-limited domain
+        v0 = Math.max(0, v0);
+        ang = clamp(ang, parseFloat(controls.ang.min), parseFloat(controls.ang.max));
+
+        const traj = { v0_mps: v0, ang_deg: ang };
+        const tGround = timeOfFlightToGround(sim, traj);
+        const tMax = isFinite(tGround) ? tGround : 6;
+        const dt = tMax / stepsPerTraj;
+
+        for (let i = 0; i <= stepsPerTraj; i++) {
+          const t = i * dt;
+          const st = stateAtTime(sim, traj, t);
+          if (!isFinite(st.x) || !isFinite(st.y)) continue;
+          if (st.y < 0) break;
+          if (st.x < 0 || st.x > xMax) continue;
+
+          const b = Math.floor(st.x / binW);
+          if (b < 0 || b >= bins) continue;
+
+          seen[b] = true;
+          if (st.y < minY[b]) minY[b] = st.y;
+          if (st.y > maxY[b]) maxY[b] = st.y;
+        }
+      }
+
+      // Build polygon points for bins with data
+      const xs = [];
+      const yLo = [];
+      const yHi = [];
+
+      for (let b = 0; b < bins; b++) {
+        if (!seen[b]) continue;
+        const xCenter = (b + 0.5) * binW;
+        xs.push(xCenter);
+        yLo.push(minY[b]);
+        yHi.push(maxY[b]);
+      }
+
+      if (xs.length < 6) return null;
+      return { xs, yLo, yHi };
+    }
+
+    // ============================
     // Rendering
     // ============================
     const canvas = el("c");
@@ -902,31 +991,32 @@
     }
 
     function makeView(sim) {
-      // Auto-view bounds based on trajectory + goal (in meters)
-      const th = deg2rad(sim.ang_deg);
-      const vx = sim.v0_mps * Math.cos(th);
-      const vy = sim.v0_mps * Math.sin(th);
-
-      const tGround = timeOfFlightToGround(sim);
+      const meanTraj = { v0_mps: sim.v0_mps, ang_deg: sim.ang_deg };
+      const tGround = timeOfFlightToGround(sim, meanTraj);
       const tMax = isFinite(tGround) ? tGround : 6;
 
       let xMax = 0, yMax = sim.y0_m;
       const samples = 220;
       for (let i = 0; i <= samples; i++) {
         const tt = (tMax * i) / samples;
-        const s = stateAtTime(sim, tt);
+        const s = stateAtTime(sim, meanTraj, tt);
         if (s.x > xMax) xMax = s.x;
         if (s.y > yMax) yMax = s.y;
       }
 
-      xMax = Math.max(xMax, sim.xg_m + sim.wg_m/2 + inToM(24));
-      yMax = Math.max(yMax, sim.yg_m + inToM(24));
+      // Ensure goal visible
+      xMax = Math.max(xMax, sim.xg_m + sim.wg_m/2 + inToM(48));
+      yMax = Math.max(yMax, sim.yg_m + inToM(48));
+
+      // Add extra margin if noise is present (so band isn't clipped)
+      const noiseBoostX = inToM(24) * (1 + Math.min(3, sim.angsd_deg / 5));
+      const noiseBoostY = inToM(24) * (1 + Math.min(3, sim.v0sd_mps / inPerSecToMPerSec(60)));
 
       const xMin = -inToM(24);
       const yMin = -inToM(12);
 
-      const padX = inToM(24);
-      const padY = inToM(24);
+      const padX = inToM(24) + noiseBoostX;
+      const padY = inToM(24) + noiseBoostY;
 
       const wx0 = xMin - padX;
       const wx1 = xMax + padX;
@@ -969,13 +1059,9 @@
     }
 
     function drawGrid(view) {
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
-
       ctx.save();
       ctx.globalAlpha = 0.35;
 
-      // target ~90px grid spacing; convert pixels->world meters
       const step = chooseNiceStep((1 / view.scale) * 90);
       const minor = step / 5;
 
@@ -986,6 +1072,7 @@
 
       // ground line y=0
       ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.65)";
       ctx.globalAlpha = 0.7;
       ctx.lineWidth = 2;
       const a = view.toScreen(view.worldX0, 0);
@@ -999,6 +1086,7 @@
 
     function drawGridLines(view, step, alpha) {
       ctx.save();
+      ctx.strokeStyle = "rgba(255,255,255,0.65)";
       ctx.globalAlpha = alpha;
       ctx.lineWidth = 1;
 
@@ -1042,7 +1130,6 @@
       ctx.strokeStyle = "rgba(255,255,255,0.9)";
       ctx.lineWidth = 3;
 
-      // bucket outline
       ctx.beginPath();
       ctx.moveTo(pTL.px, pTL.py);
       ctx.lineTo(pBL.px, pBL.py);
@@ -1058,7 +1145,6 @@
       ctx.lineTo(pTR.px, pTR.py);
       ctx.stroke();
 
-      // label
       ctx.globalAlpha = 0.9;
       ctx.fillStyle = "rgba(255,255,255,0.9)";
       ctx.font = "12px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial";
@@ -1068,7 +1154,8 @@
     }
 
     function drawTrajectory(view, sim) {
-      const tGround = timeOfFlightToGround(sim);
+      const meanTraj = { v0_mps: sim.v0_mps, ang_deg: sim.ang_deg };
+      const tGround = timeOfFlightToGround(sim, meanTraj);
       const tMax = isFinite(tGround) ? tGround : 6;
 
       ctx.save();
@@ -1079,7 +1166,7 @@
       ctx.beginPath();
       for (let i = 0; i <= N; i++) {
         const t = (tMax * i) / N;
-        const s = stateAtTime(sim, t);
+        const s = stateAtTime(sim, meanTraj, t);
         if (s.y < -inToM(48)) break;
         const q = view.toScreen(s.x, s.y);
         if (i === 0) ctx.moveTo(q.px, q.py);
@@ -1089,8 +1176,37 @@
       ctx.restore();
     }
 
+    function drawTrajectoryBand(view, band) {
+      if (!band) return;
+
+      // Fill between yLo and yHi as a polygon
+      ctx.save();
+      ctx.fillStyle = "rgba(167, 139, 250, 0.18)";  // purple-ish
+      ctx.strokeStyle = "rgba(167, 139, 250, 0.28)";
+      ctx.lineWidth = 1.5;
+
+      // top
+      ctx.beginPath();
+      for (let i = 0; i < band.xs.length; i++) {
+        const q = view.toScreen(band.xs[i], band.yHi[i]);
+        if (i === 0) ctx.moveTo(q.px, q.py);
+        else ctx.lineTo(q.px, q.py);
+      }
+      // bottom (reverse)
+      for (let i = band.xs.length - 1; i >= 0; i--) {
+        const q = view.toScreen(band.xs[i], band.yLo[i]);
+        ctx.lineTo(q.px, q.py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
     function drawTimeTicks(view, sim) {
-      const tGround = timeOfFlightToGround(sim);
+      const meanTraj = { v0_mps: sim.v0_mps, ang_deg: sim.ang_deg };
+      const tGround = timeOfFlightToGround(sim, meanTraj);
       const tMax = isFinite(tGround) ? Math.min(tGround, 10) : 10;
       const tickEvery = chooseNiceStep(tMax / 8);
 
@@ -1099,7 +1215,7 @@
       ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 
       for (let t = 0; t <= tMax + 1e-6; t += tickEvery) {
-        const s = stateAtTime(sim, t);
+        const s = stateAtTime(sim, meanTraj, t);
         if (s.y < 0) continue;
         const q = view.toScreen(s.x, s.y);
         ctx.beginPath();
@@ -1123,7 +1239,8 @@
         const age = tNow - b.birth;
         if (age < 0) continue;
 
-        const s = stateAtTime(sim, age);
+        const traj = { v0_mps: b.v0_mps, ang_deg: b.ang_deg };
+        const s = stateAtTime(sim, traj, age);
         if (s.y < -inToM(48)) continue;
 
         const q = view.toScreen(s.x, s.y);
@@ -1143,16 +1260,39 @@
     // ============================
     // Simulation loop
     // ============================
-    let tNow = 0;           // sim time (seconds)
+    let tNow = 0;
     let lastReal = 0;
     let nextSpawn = 0;
-    let balls = [];         // {birth}
+
+    // Each ball: { birth, v0_mps, ang_deg }
+    let balls = [];
+
     let cachedScore = null;
+    let cachedBand = null;
 
     function recomputeDerived() {
       const ui = readUI();
       const sim = uiToSim(ui);
-      cachedScore = scores(sim);
+      cachedScore = scoresMean(sim);
+      cachedBand = buildTrajectoryBand(sim);
+    }
+
+    function spawnBall(sim, ui, birthTime) {
+      // Sample per-ball v0 and angle using the UI-defined standard deviations
+      const v0sd = Math.max(0, sim.v0sd_mps);
+      const angsd = Math.max(0, sim.angsd_deg);
+
+      let v0 = sim.v0_mps + v0sd * randn();
+      let ang = sim.ang_deg + angsd * randn();
+
+      v0 = Math.max(0, v0);
+      ang = clamp(ang, parseFloat(controls.ang.min), parseFloat(controls.ang.max));
+
+      balls.push({ birth: birthTime, v0_mps: v0, ang_deg: ang });
+
+      if (balls.length > ui.maxBalls) {
+        balls.splice(0, balls.length - ui.maxBalls);
+      }
     }
 
     function resetTime() {
@@ -1161,10 +1301,12 @@
       nextSpawn = 0;
       balls = [];
 
-      // spawn immediately
-      balls.push({ birth: 0 });
-
       const ui = readUI();
+      const sim = uiToSim(ui);
+
+      // spawn immediately
+      spawnBall(sim, ui, 0);
+
       if (ui.rate > 0) nextSpawn = 1 / ui.rate;
       else nextSpawn = Infinity;
     }
@@ -1173,37 +1315,36 @@
       const ui = readUI();
       const sim = uiToSim(ui);
 
-      const th = deg2rad(sim.ang_deg);
-      const vx = sim.v0_mps * Math.cos(th);
-      const vy0 = sim.v0_mps * Math.sin(th);
+      const meanTraj = { v0_mps: sim.v0_mps, ang_deg: sim.ang_deg };
+      const th = deg2rad(meanTraj.ang_deg);
+      const vx = meanTraj.v0_mps * Math.cos(th);
+      const vy0 = meanTraj.v0_mps * Math.sin(th);
 
-      const tGround = timeOfFlightToGround(sim);
+      const tGround = timeOfFlightToGround(sim, meanTraj);
       const rangeM = isFinite(tGround) ? vx * tGround : Infinity;
 
-      const tAtGoal = timeToReachX(sim, sim.xg_m);
+      const tAtGoal = timeToReachX(sim, meanTraj, sim.xg_m);
       const yAtGoalM = isFinite(tAtGoal)
         ? (sim.y0_m + vy0 * tAtGoal - 0.5 * sim.g_mps2 * tAtGoal * tAtGoal)
         : NaN;
 
-      // apex
       let maxH = sim.y0_m;
       if (Math.abs(sim.g_mps2) > 1e-9) {
         const tApex = vy0 / sim.g_mps2;
         if (tApex > 0) {
-          const sA = stateAtTime(sim, tApex);
+          const sA = stateAtTime(sim, meanTraj, tApex);
           maxH = Math.max(maxH, sA.y);
         }
       }
 
       const score = cachedScore && cachedScore.score;
       const scorePill = score
-        ? `<span class="pill ok">SCORES</span>`
-        : `<span class="pill bad">NO SCORE</span>`;
+        ? `<span class="pill ok">SCORES (mean)</span>`
+        : `<span class="pill bad">NO SCORE (mean)</span>`;
       const reason = (!score && cachedScore && cachedScore.reason)
         ? ` <span class="pill warn">${cachedScore.reason}</span>`
         : "";
 
-      // Convert a few values back to inches-based display:
       const vx_in = mPerSecToInPerSec(vx);
       const vy0_in = mPerSecToInPerSec(vy0);
       const maxH_in = mToIn(maxH);
@@ -1215,6 +1356,7 @@
         <div>Max height ≈ <span class="pill">${fmt(maxH_in,1)} in</span> • Time of flight ≈ <span class="pill">${isFinite(tGround) ? fmt(tGround,2) + " s" : "—"}</span></div>
         <div>Range to ground ≈ <span class="pill">${isFinite(range_in) ? fmt(range_in,1) + " in" : "—"}</span></div>
         <div>At goal center x=${fmt(ui.xg,1)} in: y ≈ <span class="pill">${isFinite(yAtGoal_in) ? fmt(yAtGoal_in,1) + " in" : "—"}</span> • t ≈ <span class="pill">${isFinite(tAtGoal) ? fmt(tAtGoal,2) + " s" : "—"}</span></div>
+        <div>Noise: σv₀=<span class="pill">${fmt(ui.v0sd,1)} in/s</span> • σθ=<span class="pill">${fmt(ui.angsd,1)} deg</span></div>
         <div>${scorePill}${reason}</div>
       `;
     }
@@ -1226,6 +1368,10 @@
 
       clear();
       drawGrid(view);
+
+      // band first so it sits behind everything
+      drawTrajectoryBand(view, cachedBand);
+
       drawGoal(view, sim);
 
       if (ui.showCurve) drawTrajectory(view, sim);
@@ -1255,6 +1401,8 @@
       const dtReal = (realNow - lastReal) / 1000;
       lastReal = realNow;
 
+      const sim = uiToSim(ui);
+
       if (!ui.paused) {
         const dtSim = dtReal * ui.speed;
         tNow += dtSim;
@@ -1262,19 +1410,16 @@
         if (ui.rate > 0) {
           const period = 1 / ui.rate;
           while (tNow >= nextSpawn) {
-            balls.push({ birth: nextSpawn });
+            spawnBall(sim, ui, nextSpawn);
             nextSpawn += period;
-
-            if (balls.length > ui.maxBalls) {
-              balls.splice(0, balls.length - ui.maxBalls);
-            }
           }
         }
       }
 
       // cull old balls
-      const sim = uiToSim(ui);
-      const tGround = timeOfFlightToGround(sim);
+      // Use mean flight time as a baseline cull window
+      const meanTraj = { v0_mps: sim.v0_mps, ang_deg: sim.ang_deg };
+      const tGround = timeOfFlightToGround(sim, meanTraj);
       const tCull = (isFinite(tGround) ? tGround : 8) + 2;
       balls = balls.filter(b => (tNow - b.birth) <= tCull);
 
@@ -1301,7 +1446,7 @@
     }
 
     // Range inputs update number boxes and sim
-    const rangeIds = ["y0","ang","v0","g","xg","yg","wg","depth","rate","r","speed","maxBalls"];
+    const rangeIds = ["y0","ang","v0","g","v0sd","angsd","xg","yg","wg","depth","rate","r","speed","maxBalls"];
     for (const id of rangeIds) {
       controls[id].addEventListener("input", onAnyChange);
       controls[id].addEventListener("change", onAnyChange);
@@ -1313,6 +1458,8 @@
       ["ang","ang_num"],
       ["v0","v0_num"],
       ["g","g_num"],
+      ["v0sd","v0sd_num"],
+      ["angsd","angsd_num"],
       ["xg","xg_num"],
       ["yg","yg_num"],
       ["wg","wg_num"],
@@ -1327,7 +1474,6 @@
       const r = controls[rangeId];
       const n = controls[numId];
 
-      // When typing, update on change/enter/blur
       const handler = () => {
         setRangeFromNumber(r, n);
         onAnyChange();
@@ -1348,26 +1494,16 @@
     // Buttons
     controls.reset.addEventListener("click", () => resetTime());
     controls.saveLocal.addEventListener("click", () => saveSettingsLocal());
-    // Reset all settings back to factory defaults
-    controls.resetDefaults = el("resetDefaults");
+
+    // Reset defaults
     controls.resetDefaults.addEventListener("click", () => {
-    // Optional: confirm so you don't nuke a tuned setup by accident
       if (!confirm("Reset ALL settings back to defaults?")) return;
-    
-      // Write defaults to the UI, recompute, and restart the sim
       writeUI({ ...DEFAULTS });
-    
-      // If you also want this to overwrite your saved local settings, uncomment:
-      // saveSettingsLocal();
-    
       recomputeDerived();
       updateStats();
       resetTime();
-  
-    // Refresh the textarea snapshot (handy if you're using it as a preset log)
-    controls.settingsText.value = JSON.stringify(currentSettingsEnvelope(), null, 2);
-  });
-
+      controls.settingsText.value = JSON.stringify(currentSettingsEnvelope(), null, 2);
+    });
 
     // Export / import
     controls.exportBtn.addEventListener("click", exportToFile);
@@ -1400,16 +1536,16 @@
     // ============================
     resizeCanvas();
 
-    // Ensure number fields have min/max-ish context; set initial from local
     const initial = loadSettingsLocal();
     writeUI(initial);
-
-    // Put current settings in the textarea on load (handy for “versions”)
-    controls.settingsText.value = JSON.stringify(currentSettingsEnvelope(), null, 2);
 
     recomputeDerived();
     updateStats();
     resetTime();
+
+    // show current settings in textarea on load
+    controls.settingsText.value = JSON.stringify(currentSettingsEnvelope(), null, 2);
+
     requestAnimationFrame(step);
   </script>
 </body>
