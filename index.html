@@ -429,12 +429,11 @@
           </label>
         </div>
       </div>
-
-      <div class="buttons">
+      <div class="buttons3">
         <button id="reset">Reset time</button>
         <button class="secondary" id="saveLocal">Save (local)</button>
+        <button class="danger" id="resetDefaults">Reset defaults</button>
       </div>
-
       <div class="settingsBox">
         <div class="buttons3">
           <button id="exportBtn">Export .json</button>
@@ -1349,6 +1348,26 @@
     // Buttons
     controls.reset.addEventListener("click", () => resetTime());
     controls.saveLocal.addEventListener("click", () => saveSettingsLocal());
+    // Reset all settings back to factory defaults
+    controls.resetDefaults = el("resetDefaults");
+    controls.resetDefaults.addEventListener("click", () => {
+    // Optional: confirm so you don't nuke a tuned setup by accident
+      if (!confirm("Reset ALL settings back to defaults?")) return;
+    
+      // Write defaults to the UI, recompute, and restart the sim
+      writeUI({ ...DEFAULTS });
+    
+      // If you also want this to overwrite your saved local settings, uncomment:
+      // saveSettingsLocal();
+    
+      recomputeDerived();
+      updateStats();
+      resetTime();
+  
+    // Refresh the textarea snapshot (handy if you're using it as a preset log)
+    controls.settingsText.value = JSON.stringify(currentSettingsEnvelope(), null, 2);
+  });
+
 
     // Export / import
     controls.exportBtn.addEventListener("click", exportToFile);
